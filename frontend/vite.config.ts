@@ -6,13 +6,13 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true,
-    port: 5173,
+    port: process.env.FRONTEND_PORT ? parseInt(process.env.FRONTEND_PORT) : 5173,
     watch: {
       usePolling: true,
     },
     proxy: {
       '/api': {
-        target: 'http://backend:3001',
+        target: `http://backend:${process.env.BACKEND_PORT || 3001}`,
         changeOrigin: true,
       },
     },
