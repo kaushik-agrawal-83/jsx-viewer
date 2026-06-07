@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>JSX Viewer — Finder Integration Mockups</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a0d;
+    color: #e2e2e6;
+    font-family: 'SF Mono', 'JetBrains Mono', monospace;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  h1 {
+    font-family: -apple-system, sans-serif;
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: #44445a; margin-bottom: 18px;
+  }
+  .switcher { display: flex; gap: 6px; margin-bottom: 24px; }
+  .sb {
+    padding: 6px 13px; border-radius: 5px;
+    border: 1px solid #1e1e2c; background: transparent;
+    color: #44445a; font-family: inherit; font-size: 10.5px;
+    cursor: pointer; transition: all 0.13s;
+  }
+  .sb:hover { color: #8888aa; border-color: #32324a; }
+  .sb.on { background: #141422; color: #b0b0d0; border-color: #3a3a58; }
+  .hidden { display: none !important; }
+  .anns { margin-top: 16px; display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+  .ann { background: #0c0c14; border: 1px solid #141420; border-radius: 7px; padding: 9px 11px; }
+  .ann-t { font-size: 9px; color: #3a6aaa; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+  .ann-b { font-size: 9.5px; color: #2c2c44; line-height: 1.6; }
+
+  /* ── macOS Finder window ── */
+  .finder-win {
+    width: 780px;
+    border-radius: 10px; overflow: hidden;
+    border: 1px solid #1a1a26;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+    font-family: -apple-system, 'SF Pro Text', sans-serif;
+  }
+  .finder-titlebar {
+    background: #2a2a2a;
+    height: 38px; display: flex; align-items: center;
+    padding: 0 14px; gap: 8px;
+    border-bottom: 1px solid #1e1e1e;
+  }
+  .fdot { width: 12px; height: 12px; border-radius: 50%; }
+  .fr { background: #ff5f57; } .fy { background: #febc2e; } .fg { background: #28c840; }
+  .finder-path {
+    margin: 0 auto; font-size: 12px; color: #888; letter-spacing: 0.01em;
+  }
+  .finder-toolbar {
+    background: #2d2d2d;
+    height: 36px; display: flex; align-items: center;
+    padding: 0 12px; gap: 16px; border-bottom: 1px solid #1e1e1e;
+  }
+  .ftool-btn {
+    font-size: 10px; color: #666; cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .finder-body { display: flex; background: #252525; }
+  .finder-sidebar {
+    width: 160px; background: #252525;
+    border-right: 1px solid #1e1e1e;
+    padding: 8px 0;
+    flex-shrink: 0;
+  }
+  .fs-section {
+    padding: 4px 12px 2px; font-size: 9px; color: #555;
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .fs-item {
+    padding: 4px 12px; font-size: 11.5px; color: #aaa;
+    display: flex; align-items: center; gap: 6px; cursor: pointer;
+    border-radius: 5px; margin: 1px 4px;
+  }
+  .fs-item:hover { background: rgba(255,255,255,0.05); }
+  .fs-item.active { background: #0058d0; color: white; }
+  .fs-icon { font-size: 13px; }
+
+  .finder-content {
+    flex: 1; padding: 16px;
+    display: flex; flex-wrap: wrap; gap: 20px; align-content: flex-start;
+  }
+
+  /* File icons */
+  .file-item {
+    width: 80px; display: flex; flex-direction: column;
+    align-items: center; gap: 6px; cursor: pointer;
+    padding: 8px 4px; border-radius: 6px;
+  }
+  .file-item:hover { background: rgba(255,255,255,0.05); }
+  .file-item.selected { background: #0058d0; border-radius: 6px; }
+  .file-icon-wrap {
+    width: 56px; height: 56px; position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Generic code file icon */
+  .generic-icon {
+    width: 48px; height: 58px;
+    background: #e8e8e8;
+    border-radius: 3px 8px 3px 3px;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .generic-icon::before {
+    content: '';
+    position: absolute; top: 0; right: 0;
+    width: 14px; height: 14px;
+    background: #c8c8c8;
+    border-radius: 0 0 0 4px;
+    clip-path: polygon(0 0, 100% 100%, 100% 0);
+  }
+  .generic-icon .ext-label {
+    font-size: 8px; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    margin-top: 10px;
+  }
+
+  /* JSX Viewer branded icon */
+  .jsx-icon {
+    width: 48px; height: 58px;
+    background: linear-gradient(145deg, #1a1a2e 0%, #0f0f20 100%);
+    border-radius: 3px 8px 3px 3px;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    border: 1px solid #2a2a44;
+  }
+  .jsx-icon::before {
+    content: '';
+    position: absolute; top: 0; right: 0;
+    width: 14px; height: 14px;
+    background: #2a2a44;
+    border-radius: 0 0 0 4px;
+    clip-path: polygon(0 0, 100% 100%, 100% 0);
+  }
+  .jsx-icon .icon-react {
+    font-size: 20px; margin-top: 4px;
+  }
+  .jsx-icon .icon-ext {
+    font-size: 7px; font-weight: 700; letter-spacing: 0.1em;
+    color: #5a6add; margin-top: 4px; font-family: 'SF Mono', monospace;
+    text-transform: uppercase;
+  }
+
+  /* badge on file icon — app association */
+  .badge-app {
+    position: absolute; bottom: -2px; right: -2px;
+    width: 20px; height: 20px; border-radius: 5px;
+    background: #0e0e1c;
+    border: 1px solid #2a2a40;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+  }
+
+  .file-name { font-size: 11px; color: #bbb; text-align: center; line-height: 1.3; }
+  .file-item.selected .file-name { color: white; }
+
+  /* ── Context menu ── */
+  .ctx-menu {
+    position: absolute;
+    background: #2e2e2e;
+    border: 1px solid #404040;
+    border-radius: 8px;
+    padding: 4px 0;
+    min-width: 220px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    font-family: -apple-system, sans-serif;
+    font-size: 12px;
+    z-index: 10;
+  }
+  .ctx-item {
+    padding: 5px 14px;
+    color: #e0e0e0;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .ctx-item:hover { background: #0058d0; color: white; }
+  .ctx-item.disabled { color: #555; cursor: default; }
+  .ctx-sep { height: 1px; background: #404040; margin: 3px 0; }
+  .ctx-sub { display: flex; align-items: center; gap: 6px; }
+  .ctx-arrow { color: #888; font-size: 10px; }
+
+  /* Sub-menu */
+  .submenu {
+    position: absolute;
+    left: 100%; top: -4px;
+    background: #2e2e2e;
+    border: 1px solid #404040;
+    border-radius: 8px;
+    padding: 4px 0;
+    min-width: 200px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    font-size: 12px;
+  }
+  .submenu-item {
+    padding: 5px 14px; color: #e0e0e0;
+    cursor: pointer; display: flex; align-items: center; gap: 8px;
+  }
+  .submenu-item:hover { background: #0058d0; color: white; }
+  .submenu-item.highlight { background: #0058d0; color: white; }
+  .submenu-sep { height: 1px; background: #404040; margin: 3px 0; }
+  .submenu-icon { font-size: 14px; }
+
+  /* ── Finder content area wrapper ── */
+  .finder-content-wrap { flex: 1; position: relative; }
+
+  /* ── Get Info panel ── */
+  .getinfo-panel {
+    width: 300px;
+    background: #2a2a2a;
+    border-radius: 10px;
+    border: 1px solid #1e1e1e;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+    font-family: -apple-system, sans-serif;
+    overflow: hidden;
+  }
+  .gi-titlebar {
+    background: #2d2d2d;
+    height: 28px; display: flex; align-items: center;
+    padding: 0 10px; gap: 6px; border-bottom: 1px solid #1e1e1e;
+  }
+  .gi-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .gi-r { background: #ff5f57; } .gi-y { background: #febc2e; } .gi-g { background: #28c840; }
+  .gi-title { font-size: 11px; color: #888; margin: 0 auto; }
+  .gi-body { padding: 14px; }
+  .gi-file-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .gi-filename { font-size: 13px; font-weight: 600; color: #e0e0e0; }
+  .gi-filesize { font-size: 10px; color: #666; }
+  .gi-section { margin-bottom: 12px; }
+  .gi-section-header {
+    font-size: 10px; font-weight: 600; color: #888;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 4px 0; border-bottom: 1px solid #333;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer;
+  }
+  .gi-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px; }
+  .gi-label { color: #666; }
+  .gi-val { color: #bbb; }
+
+  /* Open With section */
+  .gi-openwith {
+    background: #222; border-radius: 6px;
+    padding: 8px 10px; margin-top: 6px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .gi-app-row { display: flex; align-items: center; gap: 8px; }
+  .gi-app-icon { width: 28px; height: 28px; border-radius: 6px; background: #0e0e1c; border: 1px solid #2a2a40; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .gi-app-name { font-size: 11px; color: #ccc; font-weight: 500; }
+  .gi-dropdown-btn {
+    font-size: 9px; color: #888; background: #333;
+    padding: 3px 7px; border-radius: 4px; cursor: pointer;
+    border: 1px solid #444;
+  }
+  .gi-change-all {
+    margin-top: 6px; text-align: center;
+    font-size: 10px; color: #4a8aff; cursor: pointer; text-decoration: underline;
+  }
+
+  /* ── First-launch prompt ── */
+  .prompt-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .prompt-sheet {
+    width: 400px;
+    background: #2d2d2d;
+    border-radius: 12px;
+    border: 1px solid #3a3a3a;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.7);
+    overflow: hidden;
+    font-family: -apple-system, sans-serif;
+  }
+  .prompt-body { padding: 28px 28px 20px; }
+  .prompt-icon-row { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+  .prompt-app-icon {
+    width: 56px; height: 56px; border-radius: 12px;
+    background: linear-gradient(145deg, #1a1a2e, #0e0e1c);
+    border: 1px solid #2a2a44;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; flex-shrink: 0;
+  }
+  .prompt-title { font-size: 15px; font-weight: 600; color: #e8e8e8; margin-bottom: 6px; }
+  .prompt-sub { font-size: 12px; color: #888; line-height: 1.6; }
+  .prompt-note {
+    margin: 14px 0 0;
+    padding: 10px 12px;
+    background: #252525;
+    border-radius: 7px;
+    border: 1px solid #333;
+    font-size: 11px; color: #666; line-height: 1.5;
+  }
+  .prompt-note strong { color: #888; }
+  .prompt-actions {
+    display: flex; gap: 10px;
+    padding: 14px 28px 20px;
+    border-top: 1px solid #333;
+    background: #282828;
+  }
+  .btn-secondary {
+    flex: 1; padding: 9px 14px;
+    border-radius: 7px;
+    background: #3a3a3a; border: 1px solid #444;
+    color: #aaa; font-size: 12px; font-family: inherit;
+    cursor: pointer; text-align: center;
+  }
+  .btn-secondary:hover { background: #424242; }
+  .btn-primary {
+    flex: 1.4; padding: 9px 14px;
+    border-radius: 7px;
+    background: #0058d0; border: none;
+    color: white; font-size: 12px; font-family: inherit; font-weight: 500;
+    cursor: pointer; text-align: center;
+  }
+  .btn-primary:hover { background: #006ae0; }
+
+  /* ── App opening result ── */
+  .app-win {
+    width: 780px;
+    border-radius: 11px; overflow: hidden;
+    border: 1px solid #191926;
+    box-shadow: 0 28px 70px rgba(0,0,0,0.65);
+  }
+  .app-nativebar {
+    height: 38px; background: #111118;
+    display: flex; align-items: center; padding: 0 14px;
+    gap: 8px; border-bottom: 1px solid #1a1a26; flex-shrink: 0;
+  }
+  .adot { width: 12px; height: 12px; border-radius: 50%; }
+  .ar { background: #ff5f57; } .ay { background: #febc2e; } .ag { background: #28c840; }
+  .wintitle { margin: 0 auto; font-family: -apple-system,sans-serif; font-size: 12px; color: #38384e; }
+  .app-body { display: flex; height: 420px; }
+  .app-sidebar {
+    width: 180px; background: #0e0e18; border-right: 1px solid #171724;
+    display: flex; flex-direction: column; flex-shrink: 0;
+  }
+  .app-sb-header {
+    height: 36px; display: flex; align-items: center;
+    padding: 0 10px; gap: 8px; border-bottom: 1px solid #141420;
+  }
+  .sb-toggle { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; color: #3a3a58; font-size: 14px; }
+  .sb-label-t { font-size: 9.5px; color: #38384e; letter-spacing: 0.1em; text-transform: uppercase; }
+  .app-sb-files { flex: 1; padding: 6px 0; }
+  .sb-sec { padding: 4px 10px 2px; font-size: 9px; color: #2a2a40; letter-spacing: 0.1em; text-transform: uppercase; }
+  .sb-file { display: flex; align-items: center; gap: 8px; padding: 5px 10px; cursor: pointer; border-radius: 5px; margin: 1px 4px; }
+  .sb-file.active { background: #181828; }
+  .sb-fd { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .watch-dot { background: #3a72a0; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .sb-fn { font-size: 11px; color: #5a5a78; }
+  .sb-file.active .sb-fn { color: #9090b8; }
+  .app-sb-drop {
+    margin: 8px; border: 1.5px dashed #1e1e30; border-radius: 8px;
+    padding: 12px 8px; display: flex; flex-direction: column;
+    align-items: center; gap: 6px; text-align: center; flex-shrink: 0;
+  }
+  .app-sb-drop-icon { font-size: 16px; opacity: .4; }
+  .app-sb-drop-text { font-size: 9px; color: #2e2e48; line-height: 1.4; }
+
+  .app-viewer { flex: 1; display: flex; flex-direction: column; background: #0b0b14; }
+  .app-vt {
+    height: 36px; background: #0e0e18; border-bottom: 1px solid #141420;
+    display: flex; align-items: center; padding: 0 10px; gap: 6px;
+  }
+  .vt-b {
+    padding: 4px 8px; border-radius: 4px; background: transparent; border: 1px solid transparent;
+    color: #38384e; font-family:'SF Mono',monospace; font-size: 10px; cursor: pointer;
+  }
+  .vt-b.on { background: #141422; color: #7878b8; border-color: #28283e; }
+  .pane-tabs {
+    height: 34px; background: #0d0d17; border-bottom: 1px solid #141420;
+    display: flex; align-items: flex-end; padding: 0 6px; gap: 2px;
+  }
+  .ptab {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 11px; border-radius: 5px 5px 0 0;
+    font-size: 10.5px; color: #3c3c58; cursor: pointer;
+    border: 1px solid transparent; border-bottom: none;
+    font-family: 'SF Mono', monospace;
+  }
+  .ptab.on {
+    background: #0b0b14; color: #a0a0c8;
+    border-color: #1e1e2e; border-bottom-color: #0b0b14;
+    margin-bottom: -1px; z-index: 1;
+  }
+  .ptab-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .ptab-x { width: 13px; height: 13px; border-radius: 50%; background: #1e1e2e; color: #3c3c58; font-size: 8px; display: flex; align-items: center; justify-content: center; }
+  .ptab-add { padding: 5px 8px; color: #242438; font-size: 16px; }
+  .preview-area {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: #f8f8fc; position: relative;
+  }
+  .sim-comp { background: white; border-radius: 8px; padding: 20px; font-family: -apple-system,sans-serif; color: #111; box-shadow: 0 4px 24px rgba(0,0,0,.25); width: 300px; }
+  .sim-h { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+  .sim-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .sim-bl { font-size: 10px; color: #888; width: 30px; }
+  .sim-bt { flex: 1; height: 7px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
+  .sim-bf { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #6366f1, #8b5cf6); }
+  .sim-bv { font-size: 10px; color: #bbb; width: 26px; text-align: right; }
+  .sim-foot { margin-top: 12px; padding-top: 10px; border-top: 1px solid #f4f4f4; font-size: 9px; color: #ccc; display: flex; justify-content: space-between; }
+
+  /* toast notification */
+  .toast {
+    position: absolute; bottom: 16px; right: 16px;
+    background: rgba(14,14,24,0.95);
+    border: 1px solid #252535; border-radius: 8px;
+    padding: 10px 14px; font-family: 'SF Mono',monospace;
+    font-size: 10.5px; color: #4a9a5a;
+    display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.4);
+  }
+  .toast-dot { width: 6px; height: 6px; border-radius: 50%; background: #4a9a5a; animation: pulse 2s infinite; }
+
+  /* sequence flow diagram */
+  .flow-diagram {
+    width: 780px;
+    background: #0e0e18;
+    border: 1px solid #191926;
+    border-radius: 11px;
+    padding: 24px;
+    font-family: -apple-system, sans-serif;
+  }
+  .flow-title { font-size: 11px; color: #38384e; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; font-family: 'SF Mono', monospace; }
+  .flow-cols { display: flex; gap: 0; }
+  .flow-col { flex: 1; display: flex; flex-direction: column; align-items: center; }
+  .flow-col-head {
+    background: #141422; border: 1px solid #1e1e30; border-radius: 6px;
+    padding: 6px 12px; font-size: 10px; color: #6060a0; margin-bottom: 0;
+    white-space: nowrap;
+  }
+  .flow-line {
+    width: 1px; background: #1e1e30; flex: 1; min-height: 20px;
+  }
+  .flow-arrow-row {
+    display: flex; align-items: center; width: 100%; margin: 0;
+  }
+  .flow-arrow {
+    flex: 1; display: flex; align-items: center; position: relative; height: 36px;
+  }
+  .arrow-line {
+    flex: 1; height: 1px; background: #2a2a4a;
+  }
+  .arrow-head { color: #2a2a4a; font-size: 14px; }
+  .arrow-label {
+    position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; color: #3a3a60; white-space: nowrap;
+    background: #0e0e18; padding: 0 4px;
+  }
+  .arrow-label.highlight { color: #5a7ad0; }
+  .flow-node {
+    background: #141422; border: 1px solid #1e1e30; border-radius: 5px;
+    padding: 5px 10px; font-size: 9.5px; color: #4a4a70; text-align: center;
+    margin: 0 8px; white-space: nowrap;
+  }
+  .flow-node.key { color: #7878b8; border-color: #2a2a50; background: #181828; }
+</style>
+</head>
+<body>
+
+<h1>JSX Viewer — Finder / File Association Mockups</h1>
+
+<div class="switcher">
+  <button class="sb on" onclick="show('s1',this)">① Finder — Open With menu</button>
+  <button class="sb" onclick="show('s2',this)">② First-launch prompt</button>
+  <button class="sb" onclick="show('s3',this)">③ App opens from Finder</button>
+  <button class="sb" onclick="show('s4',this)">④ Open/warm sequence</button>
+</div>
+
+<!-- ══════════════════════════════════════
+     ① Finder with context menu
+══════════════════════════════════════ -->
+<div id="s1">
+  <div class="finder-win">
+    <div class="finder-titlebar">
+      <div class="fdot fr"></div><div class="fdot fy"></div><div class="fdot fg"></div>
+      <div class="finder-path">📁 Documents / claude-artifacts</div>
+    </div>
+    <div class="finder-toolbar">
+      <div class="ftool-btn">◀ ▶</div>
+      <div class="ftool-btn">⊞ List</div>
+      <div class="ftool-btn">⊟ Column</div>
+      <div style="margin-left:auto"></div>
+      <div class="ftool-btn">🔍</div>
+    </div>
+    <div class="finder-body">
+      <div class="finder-sidebar">
+        <div class="fs-section">Favourites</div>
+        <div class="fs-item"><span class="fs-icon">🏠</span> Home</div>
+        <div class="fs-item"><span class="fs-icon">🖥</span> Desktop</div>
+        <div class="fs-item active"><span class="fs-icon">📄</span> Documents</div>
+        <div class="fs-item"><span class="fs-icon">⬇</span> Downloads</div>
+        <div style="height:8px"></div>
+        <div class="fs-section">Locations</div>
+        <div class="fs-item"><span class="fs-icon">💻</span> Macbook Pro</div>
+      </div>
+
+      <div class="finder-content-wrap" style="position:relative;flex:1">
+        <div class="finder-content" style="height:100%">
+
+          <!-- Plain .jsx file (no association yet) -->
+          <div class="file-item">
+            <div class="file-icon-wrap">
+              <div class="generic-icon" style="background:#e0e4f0">
+                <div class="ext-label" style="color:#5566aa">.jsx</div>
+              </div>
+            </div>
+            <div class="file-name" style="color:#aaa">old-widget.jsx</div>
+          </div>
+
+          <!-- .jsx files WITH JSX Viewer association (custom icon) -->
+          <div class="file-item selected">
+            <div class="file-icon-wrap">
+              <div class="jsx-icon">
+                <div class="icon-react">⚛</div>
+                <div class="icon-ext">.jsx</div>
+              </div>
+              <div class="badge-app">⚛</div>
+            </div>
+            <div class="file-name">dashboard.jsx</div>
+          </div>
+
+          <div class="file-item">
+            <div class="file-icon-wrap">
+              <div class="jsx-icon">
+                <div class="icon-react">⚛</div>
+                <div class="icon-ext">.jsx</div>
+              </div>
+              <div class="badge-app">⚛</div>
+            </div>
+            <div class="file-name" style="color:#bbb">chart-widget.jsx</div>
+          </div>
+
+          <div class="file-item">
+            <div class="file-icon-wrap">
+              <div class="jsx-icon">
+                <div class="icon-react">⚛</div>
+                <div class="icon-ext">.jsx</div>
+              </div>
+              <div class="badge-app">⚛</div>
+            </div>
+            <div class="file-name" style="color:#bbb">kpi-cards.jsx</div>
+          </div>
+
+          <div class="file-item">
+            <div class="file-icon-wrap">
+              <div class="jsx-icon">
+                <div class="icon-react">⚛</div>
+                <div class="icon-ext">.tsx</div>
+              </div>
+              <div class="badge-app">⚛</div>
+            </div>
+            <div class="file-name" style="color:#bbb">auth-form.tsx</div>
+          </div>
+        </div>
+
+        <!-- Context menu positioned over selected file -->
+        <div class="ctx-menu" style="top:50px; left:200px">
+          <div class="ctx-item"><div class="ctx-sub">Open</div></div>
+          <div class="ctx-item" style="position:relative">
+            <div class="ctx-sub" style="background:#0058d0;color:white;margin:-5px -14px;padding:5px 14px;width:calc(100% + 28px)">
+              Open With
+              <span class="ctx-arrow" style="color:white">▶</span>
+            </div>
+            <!-- Submenu -->
+            <div class="submenu" style="top:0">
+              <div class="submenu-item highlight">
+                <div style="width:20px;height:20px;border-radius:5px;background:#0e0e1c;border:1px solid #2a2a40;display:flex;align-items:center;justify-content:center;font-size:11px">⚛</div>
+                JSX Viewer (default)
+              </div>
+              <div class="submenu-sep"></div>
+              <div class="submenu-item">
+                <div style="width:20px;height:20px;border-radius:5px;background:#1e3a5f;display:flex;align-items:center;justify-content:center;font-size:10px">VS</div>
+                Visual Studio Code
+              </div>
+              <div class="submenu-item">
+                <div style="width:20px;height:20px;border-radius:5px;background:#1a2a3a;display:flex;align-items:center;justify-content:center;font-size:10px">✦</div>
+                Cursor
+              </div>
+              <div class="submenu-item">
+                <div style="width:20px;height:20px;border-radius:5px;background:#2a1a3a;display:flex;align-items:center;justify-content:center;font-size:10px">ℹ</div>
+                TextEdit
+              </div>
+              <div class="submenu-sep"></div>
+              <div class="submenu-item" style="color:#888;font-size:11px">Other…</div>
+            </div>
+          </div>
+          <div class="ctx-sep"></div>
+          <div class="ctx-item">Get Info <span style="color:#666;font-size:10px">⌘I</span></div>
+          <div class="ctx-item">Rename</div>
+          <div class="ctx-item">Move to Trash</div>
+          <div class="ctx-sep"></div>
+          <div class="ctx-item">Copy "dashboard.jsx"</div>
+          <div class="ctx-item">Share…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="anns">
+    <div class="ann"><div class="ann-t">Custom Icon</div><div class="ann-b">.jsx/.tsx files show a JSX Viewer document icon in Finder. Requires custom .icns in app bundle.</div></div>
+    <div class="ann"><div class="ann-t">Open With Menu</div><div class="ann-b">JSX Viewer appears automatically via CFBundleDocumentTypes. Shows as "(default)" when set as handler.</div></div>
+    <div class="ann"><div class="ann-t">Other Editors</div><div class="ann-b">VS Code / Cursor still appear. JSX Viewer registered as Alternate rank by default — doesn't hijack existing editor associations.</div></div>
+    <div class="ann"><div class="ann-t">Double-click</div><div class="ann-b">Opens in JSX Viewer if set as default. Otherwise falls through to user's existing default (.jsx editor).</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     ② First-launch prompt
+══════════════════════════════════════ -->
+<div id="s2" class="hidden">
+  <!-- Background: app partially visible -->
+  <div class="app-win" style="opacity:0.4;filter:blur(1px)">
+    <div class="app-nativebar">
+      <div class="adot ar"></div><div class="adot ay"></div><div class="adot ag"></div>
+      <div class="wintitle">JSX Viewer</div>
+    </div>
+    <div class="app-body">
+      <div class="app-sidebar">
+        <div class="app-sb-header"><div class="sb-toggle">⊟</div><div class="sb-label-t">Files</div></div>
+        <div class="app-sb-files"></div>
+        <div class="app-sb-drop"><div class="app-sb-drop-icon">↓</div><div class="app-sb-drop-text">Drop .jsx here</div></div>
+      </div>
+      <div class="app-viewer">
+        <div class="app-vt"><div class="vt-b on">⊞ Single</div><div class="vt-b">⊟ Split</div></div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;color:#1a1a28;font-size:13px;font-family:-apple-system,sans-serif">Drop a .jsx file to begin</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Prompt sheet overlaid -->
+  <div style="position:relative;margin-top:-340px;display:flex;justify-content:center;z-index:10">
+    <div class="prompt-sheet">
+      <div class="prompt-body">
+        <div class="prompt-icon-row">
+          <div class="prompt-app-icon">⚛</div>
+          <div>
+            <div class="prompt-title">Open .jsx files with JSX Viewer?</div>
+            <div class="prompt-sub">Double-clicking a .jsx file in Finder will open it directly in JSX Viewer.</div>
+          </div>
+        </div>
+        <div class="prompt-note">
+          <strong>Note:</strong> This only affects how .jsx files open — your code editor remains unchanged. You can reverse this any time from Finder → Get Info → Open With.
+        </div>
+      </div>
+      <div class="prompt-actions">
+        <div class="btn-secondary">No thanks</div>
+        <div class="btn-primary">Set as Default for .jsx</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="anns" style="margin-top:20px">
+    <div class="ann"><div class="ann-t">First-launch only</div><div class="ann-b">Shown once on first run. Decision stored in app prefs. Accessible again from app menu.</div></div>
+    <div class="ann"><div class="ann-t">Safe default</div><div class="ann-b">"No thanks" = Alternate rank (Open With submenu only). "Set as Default" = Owner rank via LaunchServices API.</div></div>
+    <div class="ann"><div class="ann-t">Reassurance copy</div><div class="ann-b">Explicitly tells user their editor isn't affected. Reduces anxiety about changing file associations.</div></div>
+    <div class="ann"><div class="ann-t">Reversible</div><div class="ann-b">App menu always has "Manage .jsx Association…" to re-trigger this or point to Finder Get Info.</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     ③ App opens from Finder (cold start)
+══════════════════════════════════════ -->
+<div id="s3" class="hidden">
+  <div class="app-win">
+    <div class="app-nativebar">
+      <div class="adot ar"></div><div class="adot ay"></div><div class="adot ag"></div>
+      <div class="wintitle">JSX Viewer</div>
+    </div>
+    <div class="app-body">
+      <div class="app-sidebar">
+        <div class="app-sb-header"><div class="sb-toggle">⊟</div><div class="sb-label-t">Files</div></div>
+        <div class="app-sb-files">
+          <div class="sb-sec">Open</div>
+          <div class="sb-file active">
+            <div class="sb-fd watch-dot"></div>
+            <div class="sb-fn">dashboard.jsx</div>
+          </div>
+        </div>
+        <div class="app-sb-drop"><div class="app-sb-drop-icon">↓</div><div class="app-sb-drop-text">Drop .jsx here<br>or click to browse</div></div>
+      </div>
+      <div class="app-viewer">
+        <div class="app-vt">
+          <div class="vt-b on">⊞ Single</div>
+          <div class="vt-b">⊟ Split</div>
+          <div style="flex:1"></div>
+          <div style="display:flex;align-items:center;gap:5px;font-size:9.5px;color:#3a6a4a;font-family:'SF Mono',monospace">
+            <div style="width:5px;height:5px;border-radius:50%;background:#3a8a5a;animation:pulse 2s infinite"></div>
+            watching 1 file
+          </div>
+        </div>
+        <div class="pane-tabs">
+          <div class="ptab on">
+            <div class="ptab-dot watch-dot"></div>
+            dashboard.jsx
+            <div class="ptab-x">×</div>
+          </div>
+          <div class="ptab-add">+</div>
+        </div>
+        <div class="preview-area">
+          <div class="sim-comp">
+            <div class="sim-h">📊 Weekly Performance</div>
+            <div class="sim-bar"><div class="sim-bl">Mon</div><div class="sim-bt"><div class="sim-bf" style="width:82%"></div></div><div class="sim-bv">82%</div></div>
+            <div class="sim-bar"><div class="sim-bl">Tue</div><div class="sim-bt"><div class="sim-bf" style="width:67%"></div></div><div class="sim-bv">67%</div></div>
+            <div class="sim-bar"><div class="sim-bl">Wed</div><div class="sim-bt"><div class="sim-bf" style="width:91%"></div></div><div class="sim-bv">91%</div></div>
+            <div class="sim-foot"><span>dashboard.jsx</span><span>opened from Finder</span></div>
+          </div>
+          <div class="toast">
+            <div class="toast-dot"></div>
+            Opened via Finder · watching for changes
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="anns">
+    <div class="ann"><div class="ann-t">Cold Start</div><div class="ann-b">App wasn't running. macOS launches JSX Viewer, RunEvent::Opened fires. Frontend reads file path via `invoke('opened_urls')`.</div></div>
+    <div class="ann"><div class="ann-t">Immediate Render</div><div class="ann-b">File is transpiled and rendered before any other interaction. No "drop to start" empty state shown.</div></div>
+    <div class="ann"><div class="ann-t">Watch Active</div><div class="ann-b">File watch starts immediately after open. Sidebar and tab show blue pulse dot.</div></div>
+    <div class="ann"><div class="ann-t">Toast</div><div class="ann-b">"Opened via Finder" toast confirms the source. Fades after 3 seconds.</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     ④ Open/warm sequence diagram
+══════════════════════════════════════ -->
+<div id="s4" class="hidden">
+  <div class="flow-diagram">
+    <div class="flow-title">// file association — two paths</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px">
+
+      <!-- Cold start -->
+      <div>
+        <div style="font-size:10px;color:#3a5a9a;letter-spacing:.06em;text-transform:uppercase;margin-bottom:16px;font-family:'SF Mono',monospace">Cold start — app not running</div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:0">
+          <div class="flow-node key">User double-clicks dashboard.jsx</div>
+          <div style="width:1px;height:16px;background:#1e1e30"></div>
+          <div class="flow-node">macOS: JSX Viewer registered for .jsx</div>
+          <div style="width:1px;height:16px;background:#1e1e30"></div>
+          <div class="flow-node key">Launch JSX Viewer process</div>
+          <div style="width:1px;height:16px;background:#1e1e30"></div>
+          <div class="flow-node" style="border-color:#2a3a5a;color:#5a7ab0">RunEvent::Opened { urls } fires in Rust</div>
+          <div style="width:1px;height:16px;background:#1e1e30"></div>
+          <div class="flow-node">Store path in OpenedUrls Mutex state</div>
+          <div style="width:1px;height:16px;background:#1e1e30"></div>
+          <div class="flow-node">Frontend mounts → invoke('opened_urls')</div>
+          <div style="width:1px;height:16px;background:#1e1e30"></div>
+          <div class="flow-node key">Read file → transpile → render</div>
+          <div style="width:1px;height:16px;background:#1e1e30"></div>
+          <div class="flow-node" style="border-color:#2a4a3a;color:#4a8a5a">watch_file(path) → file watch active</div>
+        </div>
+      </div>
+
+      <!-- Warm start -->
+      <div>
+        <div style="font-size:10px;color:#3a5a9a;letter-spacing:.06em;text-transform:uppercase;margin-bottom:16px;font-family:'SF Mono',monospace">Warm — app already running</div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:0">
+          <div class="flow-node key">User opens another .jsx from Finder</div>
+          <div style="width:1px;height:16px;background:#1e1e30"></div>
+          <div class="flow-node">macOS sends Apple Event to existing instance</div>
+          <div style="width:1px;height:16px;background:#1e1e30"></div>
+          <div class="flow-node" style="border-color:#2a3a5a;color:#5a7ab0">RunEvent::Opened { urls } fires in Rust</div>
+          <div style="width:1px;height:16px;background:#1e1e30"></div>
+          <div class="flow-node">Rust: app.emit("opened", urls)</div>
+          <div style="width:1px;height:16px;background:#1e1e30"></div>
+          <div class="flow-node">Frontend: listen('opened') receives path</div>
+          <div style="width:1px;height:16px;background:#1e1e30"></div>
+          <div class="flow-node key">Open new tab in focused pane</div>
+          <div style="width:1px;height:16px;background:#1e1e30"></div>
+          <div class="flow-node">Read file → transpile → render in new tab</div>
+          <div style="width:1px;height:16px;background:#1e1e30"></div>
+          <div class="flow-node" style="border-color:#2a4a3a;color:#4a8a5a">watch_file(path) → file watch active</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Key notes -->
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #141422;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+      <div style="font-size:9.5px;color:#2e2e48;line-height:1.6">
+        <span style="color:#3a5a7a">tauri.conf.json</span><br>
+        ext: ["jsx","tsx"]<br>
+        role: "Viewer"<br>
+        rank: "Alternate" (safe default)<br>
+        exportedType: public.source-code
+      </div>
+      <div style="font-size:9.5px;color:#2e2e48;line-height:1.6">
+        <span style="color:#3a5a7a">No single-instance plugin needed</span><br>
+        macOS natively prevents second instance<br>
+        for apps opened via Finder.<br>
+        Apple Event routes to existing window.
+      </div>
+      <div style="font-size:9.5px;color:#2e2e48;line-height:1.6">
+        <span style="color:#3a5a7a">Multiple files at once</span><br>
+        User selects 3 .jsx files, hits Enter.<br>
+        RunEvent::Opened urls has 3 entries.<br>
+        Each opens as a new tab.
+      </div>
+    </div>
+  </div>
+
+  <div class="anns">
+    <div class="ann"><div class="ann-t">RunEvent::Opened</div><div class="ann-b">Single Tauri event covers both cold + warm. Cold: stored in Mutex state, read on mount. Warm: emitted directly to frontend.</div></div>
+    <div class="ann"><div class="ann-t">No plugin needed</div><div class="ann-b">macOS single-instance behavior is native. tauri-plugin-single-instance only needed for Windows/Linux paths.</div></div>
+    <div class="ann"><div class="ann-t">Multi-select</div><div class="ann-b">Selecting multiple .jsx files and hitting Enter opens them all. Each becomes a separate tab in the focused pane.</div></div>
+    <div class="ann"><div class="ann-t">Drag to Dock</div><div class="ann-b">Dragging a .jsx onto the JSX Viewer dock icon while running also triggers RunEvent::Opened. Same warm path.</div></div>
+  </div>
+</div>
+
+<script>
+  const all = ['s1','s2','s3','s4'];
+  function show(id, btn) {
+    document.querySelectorAll('.sb').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    all.forEach(s => document.getElementById(s).classList.toggle('hidden', s !== id));
+  }
+</script>
+</body>
+</html>
