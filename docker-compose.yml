@@ -5,7 +5,8 @@ services:
     ports:
       - "${BACKEND_PORT:-3001}:3001"
     volumes:
-      - ./backend/src:/app/src
+      - ./backend:/app
+      - /app/node_modules
     environment:
       - PORT=3001
   frontend:
@@ -14,7 +15,8 @@ services:
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     volumes:
-      - ./frontend/src:/app/src
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       - backend
     environment:
