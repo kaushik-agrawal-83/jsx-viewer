@@ -1,7 +1,7 @@
 # Phase 5 — Sidebar + Drag-Drop
 
 ## Status
-> 🔲 NOT_STARTED  
+> ✅ COMPLETE  
 > Agent: update → 🔄 IN_PROGRESS → ✏️ CODE_COMPLETE → 🧪 TESTING_COMPLETE → ✅ COMPLETE
 
 ## Goal

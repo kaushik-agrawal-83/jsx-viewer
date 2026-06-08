@@ -97,10 +97,10 @@ graph TD
 | 1 | Docker Web Scaffold | ✅ COMPLETE |
 | 2 | Pre-commit Hooks + CI | ✅ COMPLETE |
 | 3 | Release Management | ✅ COMPLETE |
-| 4 | Transpile Pipeline | 🔲 NOT_STARTED |
-| 5 | Sidebar + Drag-Drop | 🔲 NOT_STARTED |
-| 6 | Preview + Error Display | 🔲 NOT_STARTED |
-| 7 | Tabs + Session Persistence | 🔲 NOT_STARTED |
+| 4 | Transpile Pipeline | ✅ COMPLETE |
+| 5 | Sidebar + Drag-Drop | ✅ COMPLETE |
+| 6 | Preview + Error Display | ✅ COMPLETE |
+| 7 | Tabs + Session Persistence | ✅ COMPLETE |
 | 8 | Split View | 🔲 NOT_STARTED |
 | 9 | Sidebar Collapse + Polish | 🔲 NOT_STARTED |
 | 10 | Tauri Migration | 🔲 NOT_STARTED |

@@ -12,7 +12,7 @@
     "type-check": "tsc --noEmit",
     "test": "vitest",
     "preview": "vite preview",
-    "prepare": "husky"
+    "prepare": "git config core.hooksPath frontend/.husky || true"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
@@ -24,8 +24,15 @@
     ]
   },
   "dependencies": {
+    "@babel/standalone": "^7.27.5",
+    "@radix-ui/react-slot": "^1.2.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.511.0",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "recharts": "^2.15.3",
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
