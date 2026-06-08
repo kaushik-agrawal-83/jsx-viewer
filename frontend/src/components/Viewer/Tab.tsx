@@ -16,6 +16,9 @@ export function Tab({ tab, isActive, onSelect, onClose }: Props) {
 
   return (
     <div
+      draggable
+      data-tab-id={tab.id}
+      data-pane-id={tab.paneId}
       className="flex items-center gap-1.5 px-3 py-2 cursor-pointer select-none shrink-0 border-b-2 transition-colors"
       style={{
         borderBottomColor: isActive ? '#818cf8' : 'transparent',
@@ -23,6 +26,7 @@ export function Tab({ tab, isActive, onSelect, onClose }: Props) {
         minWidth: 0,
         maxWidth: 160,
       }}
+      onDragStart={e => { e.dataTransfer.setData('application/tab-drag', tab.id); }}
       onClick={onSelect}
     >
       <StatusDot status={dotStatus} />

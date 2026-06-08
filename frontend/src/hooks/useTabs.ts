@@ -212,6 +212,44 @@ export function useTabs() {
     });
   }, []);
 
+  const moveTab = useCallback(
+    (tabId: string, toPaneId: 'left' | 'right') => {
+      setTabs(s => {
+        const inLeft = s.left.some(t => t.id === tabId);
+        const fromPaneId: 'left' | 'right' = inLeft ? 'left' : 'right';
+        if (fromPaneId === toPaneId) return s;
+
+        const sourceArr = fromPaneId === 'left' ? s.left : s.right;
+        const destArr = toPaneId === 'left' ? s.left : s.right;
+        const tab = sourceArr.find(t => t.id === tabId);
+        if (!tab) return s;
+
+        const newSource = sourceArr.filter(t => t.id !== tabId);
+        const newDest = [...destArr, { ...tab, paneId: toPaneId }];
+
+        const newLeft = fromPaneId === 'left' ? newSource : newDest;
+        const newRight = fromPaneId === 'right' ? newSource : newDest;
+
+        const srcActiveKey = fromPaneId === 'left' ? 'activeLeft' : 'activeRight';
+        const wasActive = s[srcActiveKey] === tabId;
+        const newSrcActive = wasActive
+          ? (newSource[newSource.length - 1]?.id ?? null)
+          : s[srcActiveKey];
+
+        const next: TabsState = {
+          ...s,
+          left: newLeft,
+          right: newRight,
+          activeLeft: fromPaneId === 'left' ? newSrcActive : tabId,
+          activeRight: fromPaneId === 'right' ? newSrcActive : tabId,
+        };
+        persist(next);
+        return next;
+      });
+    },
+    [persist],
+  );
+
   const migrateTabs = useCallback((from: 'right', to: 'left') => {
     setTabs(s => {
       const migrated = s[from].map(t => ({ ...t, paneId: to }));
@@ -239,6 +277,7 @@ export function useTabs() {
     setActive,
     updateTabStatus,
     updateTabSource,
+    moveTab,
     migrateTabs,
   };
 }

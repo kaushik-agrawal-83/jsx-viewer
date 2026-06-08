@@ -24,6 +24,7 @@ function App() {
     closeTab,
     setActive,
     updateTabStatus,
+    moveTab,
     migrateTabs,
   } = useTabs();
 
@@ -212,8 +213,18 @@ function App() {
     [tabs.left, tabs.right, closeTab],
   );
 
+  const handleTabMove = useCallback(
+    (tabId: string, from: 'left' | 'right', to: 'left' | 'right') => {
+      if (panes.state.mode === 'single') panes.enterSplit();
+      moveTab(tabId, to);
+    },
+    [panes, moveTab],
+  );
+
   const handleViewerDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    // Tab drags are internal — don't dim the viewer
+    if (Array.from(e.dataTransfer.types).includes('application/tab-drag')) return;
     if (viewerDragDepthRef.current === 0) setViewerDragging(true);
     viewerDragDepthRef.current += 1;
   }, []);
@@ -297,6 +308,7 @@ function App() {
             onRatioReset={panes.resetRatio}
             onStatusChange={handleStatusChange}
             onDrop={handleDrop}
+            onTabMove={handleTabMove}
           />
         </main>
       </div>
