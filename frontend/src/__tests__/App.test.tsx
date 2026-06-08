@@ -9,6 +9,6 @@ vi.stubGlobal('localStorage', createLocalStorageMock());
 describe('App', () => {
   it('renders JSX Viewer heading', () => {
     render(<App />);
-    expect(screen.getByText('⚛ JSX Viewer')).toBeInTheDocument();
+    expect(screen.getByText('JSX Viewer')).toBeInTheDocument();
   });
 });

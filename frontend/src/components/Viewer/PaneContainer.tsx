@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Pane } from './Pane';
 import { PaneDivider } from './PaneDivider';
 import type { Tab } from '../../hooks/useTabs';
@@ -8,11 +8,6 @@ interface TabDragState {
   tabId: string;
   sourcePaneId: 'left' | 'right';
 }
-
-// Module-level: survives re-renders, no dataTransfer MIME restrictions, no closure staleness.
-// WKWebView (Tauri/macOS) sandboxes custom MIME types in dataTransfer, so getData() returns "".
-// DOMStringList (types) has no .includes() — would throw TypeError before preventDefault.
-let _drag: { tabId: string; srcPane: 'left' | 'right' } | null = null;
 
 interface Props {
   mode: 'single' | 'split';
@@ -55,69 +50,99 @@ export function PaneContainer({
 }: Props) {
   const [tabDrag, setTabDrag] = useState<TabDragState | null>(null);
   const [dropTarget, setDropTarget] = useState<'left' | 'right' | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Detect tab dragstart bubbling from Tab elements (identified by data-tab-id)
-  const handleContainerDragStart = useCallback((e: React.DragEvent) => {
+  // Always-fresh refs — avoids stale closures in the long-lived pointermove/pointerup listeners
+  const modeRef = useRef(mode);
+  const leftRatioRef = useRef(leftRatio);
+  const onTabMoveRef = useRef(onTabMove);
+  modeRef.current = mode;
+  leftRatioRef.current = leftRatio;
+  onTabMoveRef.current = onTabMove;
+
+  // Set on pointerdown over a tab, cleared on pointerup
+  const dragStartRef = useRef<{
+    tabId: string;
+    srcPane: 'left' | 'right';
+    startX: number;
+    startY: number;
+  } | null>(null);
+
+  const handleContainerPointerDown = useCallback((e: React.PointerEvent) => {
     const tabEl = (e.target as HTMLElement).closest('[data-tab-id]') as HTMLElement | null;
-    if (!tabEl) return;
-    const state: TabDragState = {
+    // Don't intercept close-button clicks
+    if (!tabEl || (e.target as HTMLElement).closest('button')) return;
+    dragStartRef.current = {
       tabId: tabEl.dataset.tabId!,
-      sourcePaneId: tabEl.dataset.paneId as 'left' | 'right',
+      srcPane: tabEl.dataset.paneId as 'left' | 'right',
+      startX: e.clientX,
+      startY: e.clientY,
     };
-    _drag = { tabId: state.tabId, srcPane: state.sourcePaneId };
-    setTabDrag(state);
   }, []);
 
-  // Always-on dragend listener — clears drag state however the drag ends
+  // Compute which drop target (if any) the pointer is currently over
+  const getDropTarget = useCallback(
+    (x: number, y: number, srcPane: 'left' | 'right'): 'left' | 'right' | null => {
+      const container = containerRef.current;
+      if (!container) return null;
+      const rect = container.getBoundingClientRect();
+      if (y < rect.top || y > rect.bottom) return null;
+      if (modeRef.current === 'single') {
+        return x >= rect.right - rect.width * 0.33 ? 'right' : null;
+      }
+      const mid = rect.left + rect.width * leftRatioRef.current;
+      const overPane = x < mid ? 'left' : 'right';
+      return overPane !== srcPane ? overPane : null;
+    },
+    [],
+  );
+
+  // Mount-once document listeners — state communicated via refs to avoid re-attaching
   useEffect(() => {
-    const clear = () => {
-      _drag = null;
+    let isDragging = false;
+
+    const onMove = (e: PointerEvent) => {
+      const start = dragStartRef.current;
+      if (!start) return;
+      const dist = Math.hypot(e.clientX - start.startX, e.clientY - start.startY);
+      if (!isDragging && dist <= 5) return;
+      if (!isDragging) {
+        isDragging = true;
+        setTabDrag({ tabId: start.tabId, sourcePaneId: start.srcPane });
+      }
+      setDropTarget(getDropTarget(e.clientX, e.clientY, start.srcPane));
+    };
+
+    const onUp = (e: PointerEvent) => {
+      const start = dragStartRef.current;
+      dragStartRef.current = null;
+      if (!isDragging || !start) {
+        isDragging = false;
+        return;
+      }
+      isDragging = false;
+      const target = getDropTarget(e.clientX, e.clientY, start.srcPane);
+      if (target) onTabMoveRef.current(start.tabId, start.srcPane, target);
       setTabDrag(null);
       setDropTarget(null);
     };
-    document.addEventListener('dragend', clear);
-    return () => document.removeEventListener('dragend', clear);
-  }, []);
 
-  const commitDrop = useCallback(
-    (e: React.DragEvent, to: 'left' | 'right') => {
-      e.preventDefault();
-      e.stopPropagation();
-      const drag = _drag;
-      _drag = null;
-      if (!drag || drag.srcPane === to) return;
-      onTabMove(drag.tabId, drag.srcPane, to);
-      setTabDrag(null);
-      setDropTarget(null);
-    },
-    [onTabMove],
-  );
-
-  // Guard with tabDrag state — drop zone only renders when tabDrag is set,
-  // so this is always accurate. Avoids e.dataTransfer.types.includes() which
-  // throws in WKWebView (DOMStringList has no .includes method).
-  const handleDragOverPane = useCallback(
-    (e: React.DragEvent, paneId: 'left' | 'right') => {
-      if (!tabDrag || tabDrag.sourcePaneId === paneId) return;
-      e.preventDefault();
-      setDropTarget(paneId);
-    },
-    [tabDrag],
-  );
-
-  // Only clear dropTarget when truly leaving the wrapper (not just moving to a child)
-  const handleDragLeavePane = useCallback((e: React.DragEvent) => {
-    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) {
-      setDropTarget(null);
-    }
-  }, []);
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    return () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+    };
+  }, [getDropTarget]);
 
   // ─── single mode ──────────────────────────────────────────────────────────
   if (mode === 'single') {
     return (
       <div
+        ref={containerRef}
         className="flex-1 flex overflow-hidden bg-surface relative"
-        onDragStart={handleContainerDragStart}
+        onPointerDown={handleContainerPointerDown}
+        style={{ cursor: tabDrag ? 'grabbing' : undefined }}
       >
         <Pane
           paneId="left"
@@ -134,16 +159,12 @@ export function PaneContainer({
           onDrop={files => onDrop('left', files)}
         />
 
-        {/* Split-right drop zone: appears when a tab is being dragged */}
+        {/* Split-right drop zone — pointer-events-none since drop is detected via coords */}
         {tabDrag && (
           <div
-            className="absolute inset-y-0 right-0 z-20 flex items-center justify-center"
+            className="absolute inset-y-0 right-0 z-20 flex items-center justify-center pointer-events-none"
             style={{ width: '33%' }}
-            onDragOver={e => { e.preventDefault(); setDropTarget('right'); }}
-            onDragLeave={handleDragLeavePane}
-            onDrop={e => commitDrop(e, 'right')}
           >
-            {/* Background layer */}
             <div
               className="absolute inset-0 transition-all duration-[120ms]"
               style={{
@@ -155,12 +176,10 @@ export function PaneContainer({
                   : '2px dashed rgba(99,102,241,0.35)',
               }}
             />
-            {/* Label */}
             <div
               className="relative flex flex-col items-center gap-2 select-none pointer-events-none transition-colors duration-[120ms]"
               style={{ color: dropTarget === 'right' ? '#a5b4fc' : 'rgba(99,102,241,0.65)' }}
             >
-              {/* Split-pane icon */}
               <svg
                 width="30"
                 height="30"
@@ -187,8 +206,10 @@ export function PaneContainer({
   // ─── split mode ───────────────────────────────────────────────────────────
   return (
     <div
+      ref={containerRef}
       className="flex-1 flex overflow-hidden bg-surface"
-      onDragStart={handleContainerDragStart}
+      onPointerDown={handleContainerPointerDown}
+      style={{ cursor: tabDrag ? 'grabbing' : undefined }}
     >
       {/* Left pane wrapper */}
       <div
@@ -200,9 +221,6 @@ export function PaneContainer({
           minWidth: 0,
           position: 'relative',
         }}
-        onDragOver={e => handleDragOverPane(e, 'left')}
-        onDragLeave={handleDragLeavePane}
-        onDrop={e => commitDrop(e, 'left')}
       >
         <Pane
           paneId="left"
@@ -218,7 +236,6 @@ export function PaneContainer({
           onStatusChange={onStatusChange}
           onDrop={files => onDrop('left', files)}
         />
-        {/* Drop overlay when dragging from right pane */}
         {tabDrag?.sourcePaneId === 'right' && (
           <div
             className="absolute inset-0 pointer-events-none flex items-center justify-center transition-all duration-[120ms]"
@@ -250,9 +267,6 @@ export function PaneContainer({
       {/* Right pane wrapper */}
       <div
         style={{ flex: 1, overflow: 'hidden', display: 'flex', minWidth: 0, position: 'relative' }}
-        onDragOver={e => handleDragOverPane(e, 'right')}
-        onDragLeave={handleDragLeavePane}
-        onDrop={e => commitDrop(e, 'right')}
       >
         <Pane
           paneId="right"
@@ -268,7 +282,6 @@ export function PaneContainer({
           onStatusChange={onStatusChange}
           onDrop={files => onDrop('right', files)}
         />
-        {/* Drop overlay when dragging from left pane */}
         {tabDrag?.sourcePaneId === 'left' && (
           <div
             className="absolute inset-0 pointer-events-none flex items-center justify-center transition-all duration-[120ms]"
