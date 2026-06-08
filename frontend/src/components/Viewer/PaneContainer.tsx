@@ -71,22 +71,28 @@ export function PaneContainer({
     return () => document.removeEventListener('dragend', clear);
   }, []);
 
-  // Accepts a drop onto `to` pane; ignores if same pane or no tab drag active
+  // Read the tab ID directly from dataTransfer — avoids stale-closure issues
+  // with the tabDrag state (getData is always current at drop time).
   const commitDrop = useCallback(
     (e: React.DragEvent, to: 'left' | 'right') => {
       e.preventDefault();
       e.stopPropagation();
-      if (!tabDrag || tabDrag.sourcePaneId === to) return;
-      onTabMove(tabDrag.tabId, tabDrag.sourcePaneId, to);
+      const tabId = e.dataTransfer.getData('application/tab-drag');
+      if (!tabId) return;
+      const srcPane: 'left' | 'right' = leftTabs.some(t => t.id === tabId) ? 'left' : 'right';
+      if (srcPane === to) return;
+      onTabMove(tabId, srcPane, to);
       setTabDrag(null);
       setDropTarget(null);
     },
-    [tabDrag, onTabMove],
+    [leftTabs, onTabMove],
   );
 
   const handleDragOverPane = useCallback(
     (e: React.DragEvent, paneId: 'left' | 'right') => {
-      if (!tabDrag || tabDrag.sourcePaneId === paneId) return;
+      // Accept only tab drags, and only onto the opposite pane
+      if (!e.dataTransfer.types.includes('application/tab-drag')) return;
+      if (tabDrag && tabDrag.sourcePaneId === paneId) return;
       e.preventDefault();
       setDropTarget(paneId);
     },
@@ -127,7 +133,11 @@ export function PaneContainer({
           <div
             className="absolute inset-y-0 right-0 z-20 flex items-center justify-center"
             style={{ width: '33%' }}
-            onDragOver={e => { e.preventDefault(); setDropTarget('right'); }}
+            onDragOver={e => {
+              if (!e.dataTransfer.types.includes('application/tab-drag')) return;
+              e.preventDefault();
+              setDropTarget('right');
+            }}
             onDragLeave={handleDragLeavePane}
             onDrop={e => commitDrop(e, 'right')}
           >
