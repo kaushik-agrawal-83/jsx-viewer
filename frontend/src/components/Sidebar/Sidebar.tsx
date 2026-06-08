@@ -1,8 +1,10 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
+import { PanelLeftOpen, Download } from 'lucide-react';
 import { FileList } from './FileList';
 import { DropZone } from './DropZone';
 import { SidebarHandle } from './SidebarHandle';
 import { StatusDot } from '../StatusDot';
+import { Tooltip } from '../Tooltip';
 import type { SidebarState } from '../../hooks/useSidebar';
 import type { OpenFile, RecentFile } from '../../hooks/useOpenFiles';
 
@@ -16,10 +18,7 @@ interface Props {
   onDrop: (files: File[]) => void;
   onOpenRecent: (path: string) => void;
   onWidthChange: (n: number) => void;
-}
-
-function isJsxFile(f: DataTransferItem) {
-  return f.kind === 'file' && (f.type === '' || f.type.includes('javascript') || f.type.includes('text'));
+  onToggle: () => void;
 }
 
 export function Sidebar({
@@ -32,10 +31,11 @@ export function Sidebar({
   onDrop,
   onOpenRecent,
   onWidthChange,
+  onToggle,
 }: Props) {
   const [dragging, setDragging] = useState(false);
-  // Track enter/leave across child elements with a counter
-  const [dragDepth, setDragDepth] = useState(0);
+  const dragDepthRef = useRef(0);
+  const browseRef = useRef<HTMLInputElement>(null);
 
   if (state.hidden) return null;
 
@@ -43,10 +43,8 @@ export function Sidebar({
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setDragDepth(d => {
-      if (d === 0) setDragging(true);
-      return d + 1;
-    });
+    if (dragDepthRef.current === 0) setDragging(true);
+    dragDepthRef.current += 1;
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -54,22 +52,34 @@ export function Sidebar({
   }, []);
 
   const handleDragLeave = useCallback(() => {
-    setDragDepth(d => {
-      const next = d - 1;
-      if (next <= 0) setDragging(false);
-      return Math.max(0, next);
-    });
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setDragging(false);
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
-    setDragDepth(0);
+    dragDepthRef.current = 0;
     const files = Array.from(e.dataTransfer.files).filter(
       f => f.name.endsWith('.jsx') || f.name.endsWith('.tsx'),
     );
     if (files.length > 0) onDrop(files);
   }, [onDrop]);
+
+  const handleBrowse = useCallback(() => {
+    browseRef.current?.click();
+  }, []);
+
+  const handleBrowseChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? []).filter(
+        f => f.name.endsWith('.jsx') || f.name.endsWith('.tsx'),
+      );
+      if (files.length > 0) onDrop(files);
+      e.target.value = '';
+    },
+    [onDrop],
+  );
 
   return (
     <aside
@@ -112,17 +122,46 @@ export function Sidebar({
       )}
 
       {state.collapsed ? (
-        <div className="flex flex-col items-center pt-4 gap-3">
+        <div className="flex flex-col items-center py-3 gap-3 flex-1 overflow-hidden">
+          <button
+            type="button"
+            aria-label="Expand sidebar"
+            title="Expand sidebar"
+            onClick={onToggle}
+            style={{ color: '#94a3b8', lineHeight: 1 }}
+            className="transition-colors hover:text-text-primary"
+          >
+            <PanelLeftOpen size={16} />
+          </button>
+
           {openFiles.map(f => (
-            <div
-              key={f.path}
-              title={f.fileName}
-              className="cursor-pointer"
-              onClick={() => onSelect(f.path)}
-            >
-              <StatusDot status={f.status} />
-            </div>
+            <Tooltip key={f.path} content={f.fileName}>
+              <div className="cursor-pointer" onClick={() => onSelect(f.path)}>
+                <StatusDot status={f.status} />
+              </div>
+            </Tooltip>
           ))}
+
+          <div style={{ marginTop: 'auto' }}>
+            <button
+              type="button"
+              aria-label="Open file"
+              title="Open file…"
+              onClick={handleBrowse}
+              style={{ color: '#94a3b8', lineHeight: 1 }}
+              className="transition-colors hover:text-text-primary"
+            >
+              <Download size={16} />
+            </button>
+            <input
+              ref={browseRef}
+              type="file"
+              accept=".jsx,.tsx"
+              multiple
+              className="hidden"
+              onChange={handleBrowseChange}
+            />
+          </div>
         </div>
       ) : (
         <>

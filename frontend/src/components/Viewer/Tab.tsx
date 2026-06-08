@@ -1,4 +1,3 @@
-import React from 'react';
 import { StatusDot } from '../StatusDot';
 import type { Tab as TabData } from '../../hooks/useTabs';
 

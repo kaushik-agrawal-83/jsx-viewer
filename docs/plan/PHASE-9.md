@@ -1,8 +1,7 @@
 # Phase 9 — Sidebar Collapse + Polish
 
 ## Status
-> 🔲 NOT_STARTED  
-> Agent: update → 🔄 IN_PROGRESS → ✏️ CODE_COMPLETE → 🧪 TESTING_COMPLETE → ✅ COMPLETE
+> ✅ COMPLETE
 
 ## Goal
 Complete sidebar collapse to icon rail (⌘B toggle), all visual polish (dot animations,

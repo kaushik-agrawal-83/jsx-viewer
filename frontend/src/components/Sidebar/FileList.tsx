@@ -1,4 +1,3 @@
-import React from 'react';
 import { FileListItem } from './FileListItem';
 import type { DotStatus } from '../StatusDot';
 

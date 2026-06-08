@@ -1,0 +1,14 @@
+# Block everything except pure source code
+docs/
+**/*.md
+**/*.mdx
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.svg
+**/*.pdf
+**/*.txt
+dist/
+build/
+.git/

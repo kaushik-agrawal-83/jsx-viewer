@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import { Tab } from './Tab';
 import type { Tab as TabData } from '../../hooks/useTabs';
 
@@ -8,9 +8,11 @@ interface Props {
   onSelect: (tabId: string) => void;
   onClose: (tabId: string) => void;
   onAdd: () => void;
+  showClosePane?: boolean;
+  onClosePane?: () => void;
 }
 
-export function TabStrip({ tabs, activeTabId, onSelect, onClose, onAdd }: Props) {
+export function TabStrip({ tabs, activeTabId, onSelect, onClose, onAdd, showClosePane, onClosePane }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleAdd = () => {
@@ -56,6 +58,21 @@ export function TabStrip({ tabs, activeTabId, onSelect, onClose, onAdd }: Props)
         multiple
         className="hidden"
       />
+
+      {showClosePane && (
+        <button
+          type="button"
+          className="ml-auto px-3 py-2 text-sm shrink-0 transition-colors"
+          style={{ color: '#475569' }}
+          aria-label="close pane"
+          title="Close right pane"
+          onClick={onClosePane}
+          onMouseOver={e => ((e.currentTarget as HTMLButtonElement).style.color = '#f1f5f9')}
+          onMouseOut={e => ((e.currentTarget as HTMLButtonElement).style.color = '#475569')}
+        >
+          ⊠
+        </button>
+      )}
     </div>
   );
 }

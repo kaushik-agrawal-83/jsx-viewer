@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { StatusDot } from '../StatusDot';
 import type { DotStatus } from '../StatusDot';
 

@@ -1,7 +1,7 @@
 # Phase 10 — Tauri Migration
 
 ## Status
-> 🔲 NOT_STARTED  
+> ✅ COMPLETE  
 > Agent: update → 🔄 IN_PROGRESS → ✏️ CODE_COMPLETE → 🧪 TESTING_COMPLETE → ✅ COMPLETE
 
 ## Goal
@@ -208,6 +208,9 @@ export default function TauriTest() {
 ## Notes
 - `notify` crate: use `RecommendedWatcher` (wraps FSEvents on macOS — low CPU, no polling).
 - Debounce 300ms in Rust: use a `HashMap<String, Instant>` to track last-emit time per path; skip emit if last emit was < 300ms ago.
-- `window.__TAURI__` is injected by Tauri at runtime — safe for adapter detection.
+- Tauri v2 uses `window.__TAURI_INTERNALS__` (not `window.__TAURI__`) for runtime detection — fixed in adapter-factory and App.tsx.
 - The Docker backend (`backend/` service) is NOT needed in Tauri mode. Keep it for web dev iteration. Do not delete it.
 - Rust `Mutex` on `WatcherMap`: accept the lock overhead; the watcher map is only touched on IPC commands, not on the hot path.
+
+## Known Issues
+- **Native drag-drop not working** (`tauri://drag-drop` event not firing). Listener registered correctly (`__TAURI_INTERNALS__` detected, dynamic import succeeds) but drop from Finder produces no event. Likely cause: Tauri v2 window-level drag-drop config or capabilities gap. Needs investigation before Phase 11. Workaround: use the "+" button or file picker to open files in Tauri mode.

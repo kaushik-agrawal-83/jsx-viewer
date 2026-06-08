@@ -1,10 +1,9 @@
 /// <reference types="vitest/globals" />
-import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ErrorBoundary } from '../ErrorBoundary';
 
-function Bomb() {
+function Bomb(): never {
   throw new Error('test explosion');
 }
 

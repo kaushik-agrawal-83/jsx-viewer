@@ -17,7 +17,7 @@ const mockAdapter: IOAdapter = {
 };
 
 const wrapper = ({ children }: { children: React.ReactNode }) =>
-  React.createElement(AdapterProvider, { adapter: mockAdapter }, children);
+  React.createElement(AdapterProvider, { adapter: mockAdapter, children });
 
 describe('useTabs', () => {
   it('openTab adds to left array', () => {

@@ -101,9 +101,9 @@ graph TD
 | 5 | Sidebar + Drag-Drop | ✅ COMPLETE |
 | 6 | Preview + Error Display | ✅ COMPLETE |
 | 7 | Tabs + Session Persistence | ✅ COMPLETE |
-| 8 | Split View | 🔲 NOT_STARTED |
-| 9 | Sidebar Collapse + Polish | 🔲 NOT_STARTED |
-| 10 | Tauri Migration | 🔲 NOT_STARTED |
+| 8 | Split View | ✅ COMPLETE |
+| 9 | Sidebar Collapse + Polish | ✅ COMPLETE |
+| 10 | Tauri Migration | ✅ COMPLETE |
 | 11 | macOS File Association | 🔲 NOT_STARTED |
 | 12 | Production Readiness | 🔲 NOT_STARTED |
 | 13 | File Watcher + Hot Reload | ⏸️ DEFERRED |

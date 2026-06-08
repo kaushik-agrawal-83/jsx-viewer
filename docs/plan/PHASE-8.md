@@ -1,8 +1,7 @@
 # Phase 8 — Split View
 
 ## Status
-> 🔲 NOT_STARTED  
-> Agent: update → 🔄 IN_PROGRESS → ✏️ CODE_COMPLETE → 🧪 TESTING_COMPLETE → ✅ COMPLETE
+> ✅ COMPLETE
 
 ## Goal
 Side-by-side viewing of two JSX files: toggle split mode from toolbar, each pane has
