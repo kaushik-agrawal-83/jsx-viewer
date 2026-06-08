@@ -26,17 +26,15 @@ const LS = {
   activeRight: 'tabs.activeRight',
 } as const;
 
+type StoredTab = { id: string; path: string; fileName: string; source?: string };
+
 function readLS(): Pick<TabsState, 'activeLeft' | 'activeRight'> & {
-  leftPaths: Array<{ id: string; path: string; fileName: string }>;
-  rightPaths: Array<{ id: string; path: string; fileName: string }>;
+  leftPaths: StoredTab[];
+  rightPaths: StoredTab[];
 } {
   const parse = (key: string) => {
     try {
-      return JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{
-        id: string;
-        path: string;
-        fileName: string;
-      }>;
+      return JSON.parse(localStorage.getItem(key) ?? '[]') as StoredTab[];
     } catch {
       return [];
     }
@@ -50,14 +48,12 @@ function readLS(): Pick<TabsState, 'activeLeft' | 'activeRight'> & {
 }
 
 function saveLS(state: TabsState) {
-  localStorage.setItem(
-    LS.left,
-    JSON.stringify(state.left.map(t => ({ id: t.id, path: t.path, fileName: t.fileName }))),
-  );
-  localStorage.setItem(
-    LS.right,
-    JSON.stringify(state.right.map(t => ({ id: t.id, path: t.path, fileName: t.fileName }))),
-  );
+  const serialize = (tabs: Tab[]) =>
+    JSON.stringify(
+      tabs.map(t => ({ id: t.id, path: t.path, fileName: t.fileName, source: t.source })),
+    );
+  localStorage.setItem(LS.left, serialize(state.left));
+  localStorage.setItem(LS.right, serialize(state.right));
   if (state.activeLeft) localStorage.setItem(LS.activeLeft, state.activeLeft);
   else localStorage.removeItem(LS.activeLeft);
   if (state.activeRight) localStorage.setItem(LS.activeRight, state.activeRight);
@@ -75,12 +71,17 @@ function nextActive(tabs: Tab[], closedId: string): string | null {
 export function useTabs() {
   const adapter = useAdapter();
 
+  const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
   const [tabs, setTabs] = useState<TabsState>(() => {
     const { leftPaths, rightPaths, activeLeft, activeRight } = readLS();
-    const toTab = (
-      t: { id: string; path: string; fileName: string },
-      paneId: 'left' | 'right',
-    ): Tab => ({ ...t, paneId, status: 'loading' });
+    const toTab = (t: StoredTab, paneId: 'left' | 'right'): Tab => ({
+      ...t,
+      paneId,
+      // Web mode: source cached in localStorage — mark ready immediately
+      // Tauri mode: source undefined until readFile resolves
+      status: !isTauri && t.source !== undefined ? 'ok' : 'loading',
+    });
     return {
       left: leftPaths.map(t => toTab(t, 'left')),
       right: rightPaths.map(t => toTab(t, 'right')),
@@ -89,7 +90,8 @@ export function useTabs() {
     };
   });
 
-  // Session restore: read each tab's source from backend
+  // Session restore: re-read each tab's source from disk (Tauri only)
+  // Web mode: source already in state from localStorage cache above
   useEffect(() => {
     const restore = async (tab: Tab) => {
       try {

@@ -13,7 +13,6 @@ export class RuntimeError extends Error {
 export function evalComponent(code: string): React.ComponentType {
   const moduleObj = { exports: {} as Record<string, unknown> };
   try {
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
     const fn = new Function('require', 'module', 'exports', 'React', code);
     // React injected as global so bare React.useState() works without an import
     fn(resolve, moduleObj, moduleObj.exports, React);

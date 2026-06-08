@@ -1,6 +1,8 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
+// Note: Vite 8 removed esbuild.drop API (switched to oxc transforms).
+// Console stripping in production builds can be added via a Rollup plugin if needed.
 export default defineConfig({
   plugins: [react()],
   server: {

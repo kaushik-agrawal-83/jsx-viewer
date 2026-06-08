@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { PaneContainer } from './components/Viewer/PaneContainer';
 import { ViewerToolbar } from './components/Viewer/ViewerToolbar';
+import { DefaultHandlerPrompt } from './components/DefaultHandlerPrompt';
 import { useSidebar } from './hooks/useSidebar';
 import { useTabs } from './hooks/useTabs';
 import { usePanes } from './hooks/usePanes';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useFinderOpen } from './hooks/useFinderOpen';
 import { useAdapter } from './lib/adapter-context';
 import type { ErrorInfo } from './components/Viewer/ErrorDisplay';
 
@@ -31,7 +35,65 @@ function App() {
 
   useKeyboardShortcuts({ toggleSidebar: sidebar.toggle });
 
-  // Viewer drag dim state
+  // Phase 11 — Finder open via double-click / Open With
+  const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
+  const handleFinderPaths = useCallback(
+    (paths: string[]) => {
+      paths
+        .filter(p => p.endsWith('.jsx') || p.endsWith('.tsx'))
+        .forEach(path => {
+          const fileName = path.split('/').pop() ?? path;
+          void adapter.readFile(path).then(source => {
+            openTab(panes.state.focusedPane, path, fileName, source);
+          });
+        });
+    },
+    [adapter, openTab, panes.state.focusedPane],
+  );
+
+  useFinderOpen(handleFinderPaths);
+
+  // Phase 11 — first-launch default handler prompt
+  const [showDefaultPrompt, setShowDefaultPrompt] = useState(false);
+
+  useEffect(() => {
+    if (!isTauri) return;
+    const timer = setTimeout(() => {
+      void invoke<boolean>('has_prompted_default').then(prompted => {
+        if (!prompted) setShowDefaultPrompt(true);
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [isTauri]);
+
+  // Phase 12 — file-deleted → mark tab missing
+  useEffect(() => {
+    if (!isTauri) return;
+    let unlisten: (() => void) | undefined;
+    void listen<{ path: string }>('file-deleted', event => {
+      const { path } = event.payload;
+      const tab = [...tabs.left, ...tabs.right].find(t => t.path === path);
+      if (tab) updateTabStatus(tab.id, 'missing');
+    }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, [isTauri, tabs.left, tabs.right, updateTabStatus]);
+
+  // Tauri OS-level drag animation (fires for Finder drags, not HTML5 events)
+  const [tauriDragging, setTauriDragging] = useState(false);
+
+  useEffect(() => {
+    if (!isTauri) return;
+    const unlisteners: (() => void)[] = [];
+    void Promise.all([
+      listen<{ paths: string[] }>('tauri://drag', () => setTauriDragging(true)),
+      listen('tauri://drag-leave', () => setTauriDragging(false)),
+      listen('tauri://drag-cancelled', () => setTauriDragging(false)),
+    ]).then(fns => unlisteners.push(...fns));
+    return () => unlisteners.forEach(f => f());
+  }, [isTauri]);
+
+  // Viewer drag dim state (HTML5 — web mode)
   const [viewerDragging, setViewerDragging] = useState(false);
   const viewerDragDepthRef = React.useRef(0);
 
@@ -45,20 +107,20 @@ function App() {
   useEffect(() => {
     if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
     let unlisten: (() => void) | undefined;
-    void import('@tauri-apps/api/event').then(({ listen }) => {
-      void listen<{ type: string; paths: string[] }>('tauri://drag-drop', event => {
-        if (event.payload.type !== 'drop') return;
-        event.payload.paths
-          .filter(p => p.endsWith('.jsx') || p.endsWith('.tsx'))
-          .forEach(path => {
-            const fileName = path.split('/').pop() ?? path;
-            void adapter.readFile(path).then(source => {
-              openTab(panes.state.focusedPane, path, fileName, source);
-            });
+    // Tauri v2: tauri://drag-drop payload is { paths, position } — no type field.
+    // Each event name is already specific (drag-drop only fires on actual drop).
+    void listen<{ paths: string[] }>('tauri://drag-drop', event => {
+      setTauriDragging(false);
+      event.payload.paths
+        .filter(p => p.endsWith('.jsx') || p.endsWith('.tsx'))
+        .forEach(path => {
+          const fileName = path.split('/').pop() ?? path;
+          void adapter.readFile(path).then(source => {
+            openTab(panes.state.focusedPane, path, fileName, source);
           });
-      }).then(fn => {
-        unlisten = fn;
-      });
+        });
+    }).then(fn => {
+      unlisten = fn;
     });
     return () => { unlisten?.(); };
   }, [adapter, openTab, panes.state.focusedPane]);
@@ -173,6 +235,9 @@ function App() {
 
   return (
     <div className="flex h-screen w-screen flex-col bg-app-bg text-text-primary overflow-hidden">
+      {showDefaultPrompt && (
+        <DefaultHandlerPrompt onClose={() => setShowDefaultPrompt(false)} />
+      )}
       {/* Glass toolbar */}
       <header
         className="flex h-[44px] shrink-0 items-center px-4 z-10 border-b"
@@ -197,12 +262,13 @@ function App() {
           onOpenRecent={() => {}}
           onWidthChange={sidebar.setWidth}
           onToggle={sidebar.toggle}
+          tauriDragging={tauriDragging}
         />
 
         {/* Viewer column */}
         <main
           className="flex-1 flex flex-col overflow-hidden"
-          style={{ opacity: viewerDragging ? 0.5 : 1, transition: 'opacity 0.15s' }}
+          style={{ opacity: viewerDragging || tauriDragging ? 0.5 : 1, transition: 'opacity 0.15s' }}
           onDragEnter={handleViewerDragEnter}
           onDragLeave={handleViewerDragLeave}
           onDragOver={handleViewerDragOver}

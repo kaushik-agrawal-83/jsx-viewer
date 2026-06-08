@@ -21,7 +21,6 @@ interface Props {
 }
 
 export function Pane({
-  paneId: _paneId,
   tabs,
   activeTabId,
   isFocused,

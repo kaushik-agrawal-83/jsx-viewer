@@ -164,6 +164,7 @@ export const TableCell = ({
   </td>
 );
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const shadcnStubs: Record<string, Record<string, unknown>> = {
   button: { Button },
   card: { Card, CardHeader, CardContent, CardTitle, CardDescription },

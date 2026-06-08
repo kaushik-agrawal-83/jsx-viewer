@@ -37,6 +37,14 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "fileAssociations": [
+      {
+        "ext": ["jsx", "tsx"],
+        "name": "JSX Component",
+        "role": "Viewer",
+        "rank": "Alternate"
+      }
+    ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }

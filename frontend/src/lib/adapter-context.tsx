@@ -14,6 +14,7 @@ export function AdapterProvider({
   return <AdapterContext.Provider value={adapter}>{children}</AdapterContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAdapter(): IOAdapter {
   return useContext(AdapterContext);
 }

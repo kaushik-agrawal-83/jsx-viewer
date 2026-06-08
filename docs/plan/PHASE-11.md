@@ -1,7 +1,7 @@
 # Phase 11 — macOS File Association
 
 ## Status
-> 🔲 NOT_STARTED  
+> ✏️ CODE_COMPLETE  
 > Agent: update → 🔄 IN_PROGRESS → ✏️ CODE_COMPLETE → 🧪 TESTING_COMPLETE → ✅ COMPLETE
 
 ## Goal

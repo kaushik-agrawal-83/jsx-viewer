@@ -30,7 +30,7 @@ function injectTailwindCDN() {
   document.head.appendChild(script);
 }
 
-export function Preview({ source, fileName: _fileName, onStatusChange }: Props) {
+export function Preview({ source, onStatusChange }: Props) {
   const injected = useRef(false);
 
   useEffect(() => {
