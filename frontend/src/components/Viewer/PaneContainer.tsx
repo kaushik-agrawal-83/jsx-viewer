@@ -9,6 +9,11 @@ interface TabDragState {
   sourcePaneId: 'left' | 'right';
 }
 
+// Module-level: survives re-renders, no dataTransfer MIME restrictions, no closure staleness.
+// WKWebView (Tauri/macOS) sandboxes custom MIME types in dataTransfer, so getData() returns "".
+// DOMStringList (types) has no .includes() — would throw TypeError before preventDefault.
+let _drag: { tabId: string; srcPane: 'left' | 'right' } | null = null;
+
 interface Props {
   mode: 'single' | 'split';
   leftRatio: number;
@@ -55,15 +60,18 @@ export function PaneContainer({
   const handleContainerDragStart = useCallback((e: React.DragEvent) => {
     const tabEl = (e.target as HTMLElement).closest('[data-tab-id]') as HTMLElement | null;
     if (!tabEl) return;
-    setTabDrag({
+    const state: TabDragState = {
       tabId: tabEl.dataset.tabId!,
       sourcePaneId: tabEl.dataset.paneId as 'left' | 'right',
-    });
+    };
+    _drag = { tabId: state.tabId, srcPane: state.sourcePaneId };
+    setTabDrag(state);
   }, []);
 
   // Always-on dragend listener — clears drag state however the drag ends
   useEffect(() => {
     const clear = () => {
+      _drag = null;
       setTabDrag(null);
       setDropTarget(null);
     };
@@ -71,28 +79,26 @@ export function PaneContainer({
     return () => document.removeEventListener('dragend', clear);
   }, []);
 
-  // Read the tab ID directly from dataTransfer — avoids stale-closure issues
-  // with the tabDrag state (getData is always current at drop time).
   const commitDrop = useCallback(
     (e: React.DragEvent, to: 'left' | 'right') => {
       e.preventDefault();
       e.stopPropagation();
-      const tabId = e.dataTransfer.getData('application/tab-drag');
-      if (!tabId) return;
-      const srcPane: 'left' | 'right' = leftTabs.some(t => t.id === tabId) ? 'left' : 'right';
-      if (srcPane === to) return;
-      onTabMove(tabId, srcPane, to);
+      const drag = _drag;
+      _drag = null;
+      if (!drag || drag.srcPane === to) return;
+      onTabMove(drag.tabId, drag.srcPane, to);
       setTabDrag(null);
       setDropTarget(null);
     },
-    [leftTabs, onTabMove],
+    [onTabMove],
   );
 
+  // Guard with tabDrag state — drop zone only renders when tabDrag is set,
+  // so this is always accurate. Avoids e.dataTransfer.types.includes() which
+  // throws in WKWebView (DOMStringList has no .includes method).
   const handleDragOverPane = useCallback(
     (e: React.DragEvent, paneId: 'left' | 'right') => {
-      // Accept only tab drags, and only onto the opposite pane
-      if (!e.dataTransfer.types.includes('application/tab-drag')) return;
-      if (tabDrag && tabDrag.sourcePaneId === paneId) return;
+      if (!tabDrag || tabDrag.sourcePaneId === paneId) return;
       e.preventDefault();
       setDropTarget(paneId);
     },
@@ -133,11 +139,7 @@ export function PaneContainer({
           <div
             className="absolute inset-y-0 right-0 z-20 flex items-center justify-center"
             style={{ width: '33%' }}
-            onDragOver={e => {
-              if (!e.dataTransfer.types.includes('application/tab-drag')) return;
-              e.preventDefault();
-              setDropTarget('right');
-            }}
+            onDragOver={e => { e.preventDefault(); setDropTarget('right'); }}
             onDragLeave={handleDragLeavePane}
             onDrop={e => commitDrop(e, 'right')}
           >
