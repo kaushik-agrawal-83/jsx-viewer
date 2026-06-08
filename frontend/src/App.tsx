@@ -214,8 +214,8 @@ function App() {
   );
 
   const handleTabMove = useCallback(
-    (tabId: string, from: 'left' | 'right', to: 'left' | 'right') => {
-if (panes.state.mode === 'single') panes.enterSplit();
+    (tabId: string, _from: 'left' | 'right', to: 'left' | 'right') => {
+      if (panes.state.mode === 'single') panes.enterSplit();
       moveTab(tabId, to);
     },
     [panes, moveTab],

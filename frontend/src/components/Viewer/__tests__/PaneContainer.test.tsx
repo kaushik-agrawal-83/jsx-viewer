@@ -18,6 +18,7 @@ const baseProps = {
   onRatioReset: () => {},
   onStatusChange: () => {},
   onDrop: () => {},
+  onTabMove: () => {},
 };
 
 describe('PaneContainer', () => {
